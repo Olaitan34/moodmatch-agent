@@ -72,16 +72,19 @@ class MessagePart(BaseModel):
     A part of a message that can contain text, structured data, or file reference.
     
     Supports three kinds:
-    - text: Plain text content
-    - data: Structured JSON data
+    - text: Plain text content (use 'text' field)
+    - data: Structured JSON data (use 'data' field)
     - file: File reference with metadata
     """
 
     kind: MessagePartKind = Field(
         ..., description="Type of content: text, data, or file"
     )
-    content: str | dict[str, Any] | None = Field(
-        None, description="The actual content (string for text, object for data/file)"
+    text: Optional[str] = Field(
+        None, description="Text content (for kind='text')"
+    )
+    data: Optional[dict[str, Any]] = Field(
+        None, description="Structured data (for kind='data')"
     )
     mimeType: Optional[str] = Field(
         None, description="MIME type of the content (e.g., 'application/json', 'text/plain')"
@@ -96,15 +99,22 @@ class MessagePart(BaseModel):
         None, description="URL to access the file or resource"
     )
 
-    @field_validator("content")
+    @field_validator("text")
     @classmethod
-    def validate_content(cls, v: Any, info) -> Any:
-        """Validate content based on kind."""
+    def validate_text(cls, v: Optional[str], info) -> Optional[str]:
+        """Validate text field matches kind."""
         kind = info.data.get("kind")
-        if kind == MessagePartKind.TEXT and not isinstance(v, str):
-            raise ValueError("Text kind requires string content")
-        elif kind == MessagePartKind.DATA and not isinstance(v, dict):
-            raise ValueError("Data kind requires object content")
+        if kind == MessagePartKind.TEXT and v is None:
+            raise ValueError("Text kind requires 'text' field to be set")
+        return v
+    
+    @field_validator("data")
+    @classmethod
+    def validate_data(cls, v: Optional[dict], info) -> Optional[dict]:
+        """Validate data field matches kind."""
+        kind = info.data.get("kind")
+        if kind == MessagePartKind.DATA and v is None:
+            raise ValueError("Data kind requires 'data' field to be set")
         return v
 
     class Config:
@@ -127,6 +137,9 @@ class A2AMessage(BaseModel):
     )
     messageId: str = Field(
         default_factory=lambda: str(uuid4()), description="Unique identifier for this message"
+    )
+    contextId: Optional[str] = Field(
+        None, description="Associated context ID for conversation tracking"
     )
     taskId: Optional[str] = Field(
         None, description="Associated task ID for tracking"
@@ -211,14 +224,24 @@ class MessageParams(BaseModel):
     """
     Parameters for sending a message to an agent.
     
-    Wraps the message and its configuration for the message/send method.
+    Wraps the messages and configuration for the message/send method.
+    Compatible with execute method parameters.
     """
 
-    message: A2AMessage = Field(
-        ..., description="The message to send to the agent"
+    contextId: str = Field(
+        default_factory=lambda: str(uuid4()),
+        description="Unique identifier for the conversation context"
     )
-    configuration: MessageConfiguration = Field(
+    taskId: str = Field(
+        default_factory=lambda: str(uuid4()),
+        description="Unique identifier for this task execution"
+    )
+    messages: list[A2AMessage] = Field(
+        default_factory=list, description="List of messages to send to the agent"
+    )
+    config: MessageConfiguration = Field(
         default_factory=MessageConfiguration,
+        alias="configuration",
         description="Configuration for how the agent should process this message"
     )
 
@@ -272,19 +295,8 @@ class JSONRPCRequest(BaseModel):
         ..., description="Method to invoke: message/send or execute"
     )
     params: MessageParams | ExecuteParams = Field(
-        ..., description="Parameters for the method (MessageParams or ExecuteParams)"
+        ..., description="Parameters for the method (MessageParams or ExecuteParams, both are compatible)"
     )
-
-    @field_validator("params")
-    @classmethod
-    def validate_params(cls, v: MessageParams | ExecuteParams, info) -> MessageParams | ExecuteParams:
-        """Validate params match the method."""
-        method = info.data.get("method")
-        if method == "message/send" and not isinstance(v, MessageParams):
-            raise ValueError("message/send requires MessageParams")
-        elif method == "execute" and not isinstance(v, ExecuteParams):
-            raise ValueError("execute requires ExecuteParams")
-        return v
 
 
 # ============================================================================
@@ -357,15 +369,11 @@ class TaskResult(BaseModel):
     and metadata about the execution.
     """
 
-    id: str = Field(
-        default_factory=lambda: str(uuid4()),
-        description="Unique identifier for this task result"
+    taskId: str = Field(
+        ..., description="Unique task identifier from the original request"
     )
     contextId: str = Field(
         ..., description="Context ID from the original request"
-    )
-    taskId: str = Field(
-        ..., description="Task ID from the original request"
     )
     status: TaskStatus = Field(
         ..., description="Current status of the task"

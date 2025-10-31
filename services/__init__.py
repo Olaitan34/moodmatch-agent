@@ -16,6 +16,18 @@ from .spotify_service import (
     create_spotify_service,
     get_music_for_mood,
 )
+from .movie_service import (
+    MovieRecommendation,
+    TMDBMovieService,
+    create_movie_service,
+    get_movie_for_mood,
+)
+from .book_service import (
+    BookRecommendation,
+    GoogleBooksService,
+    create_books_service,
+    get_book_for_mood,
+)
 
 __all__ = [
     # Mood Analysis
@@ -28,4 +40,14 @@ __all__ = [
     "SpotifyMusicService",
     "create_spotify_service",
     "get_music_for_mood",
+    # TMDB Movies
+    "MovieRecommendation",
+    "TMDBMovieService",
+    "create_movie_service",
+    "get_movie_for_mood",
+    # Google Books
+    "BookRecommendation",
+    "GoogleBooksService",
+    "create_books_service",
+    "get_book_for_mood",
 ]

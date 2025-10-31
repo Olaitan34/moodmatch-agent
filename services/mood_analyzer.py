@@ -11,7 +11,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_ai import Agent
-from pydantic_ai.exceptions import ModelHTTPException, UnexpectedModelBehaviour
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -99,13 +98,51 @@ class MoodAnalysis(BaseModel):
             raise ValueError(f"immediate_need must be one of {allowed}")
         return v.lower()
     
-    @field_validator("primary_mood", "secondary_moods")
+    @field_validator("primary_mood")
     @classmethod
-    def normalize_mood_names(cls, v: str | list[str]) -> str | list[str]:
-        """Normalize mood names to lowercase."""
-        if isinstance(v, str):
-            return v.lower().strip()
-        return [mood.lower().strip() for mood in v]
+    def validate_primary_mood(cls, v: str) -> str:
+        """Validate primary_mood is one of the 52 allowed moods and normalize."""
+        # 52 valid moods across 6 categories
+        VALID_MOODS = {
+            # Positive Emotions (10)
+            "happy", "excited", "grateful", "peaceful", "confident", "inspired", 
+            "playful", "content", "loving", "proud",
+            # Negative Emotions (12)
+            "sad", "anxious", "stressed", "angry", "lonely", "heartbroken", 
+            "disappointed", "guilty", "jealous", "embarrassed", "afraid", "hopeless",
+            # Energy States (8)
+            "energetic", "tired", "restless", "sluggish", "hyper", "burnt_out", 
+            "mellow", "drowsy",
+            # Social/Relational (8)
+            "social", "introverted", "romantic", "nostalgic", "homesick", 
+            "misunderstood", "betrayed", "supported",
+            # Existential/Reflective (8)
+            "contemplative", "philosophical", "curious", "confused", "stuck", 
+            "purposeful", "empty", "overwhelmed",
+            # Transitional/Complex (6)
+            "bittersweet", "numb", "vengeful", "rebellious", "vulnerable", "bored"
+        }
+        
+        normalized = v.lower().strip().replace(" ", "_")
+        
+        if normalized not in VALID_MOODS:
+            # Try to find closest match
+            from difflib import get_close_matches
+            matches = get_close_matches(normalized, VALID_MOODS, n=1, cutoff=0.6)
+            if matches:
+                logger.warning(f"Mood '{v}' not in valid set, using closest match: '{matches[0]}'")
+                return matches[0]
+            # Default to "overwhelmed" if no good match found
+            logger.warning(f"Mood '{v}' not recognized, defaulting to 'overwhelmed'")
+            return "overwhelmed"
+        
+        return normalized
+    
+    @field_validator("secondary_moods")
+    @classmethod
+    def normalize_secondary_moods(cls, v: list[str]) -> list[str]:
+        """Normalize secondary mood names to lowercase."""
+        return [mood.lower().strip().replace(" ", "_") for mood in v]
 
 
 # ============================================================================
@@ -140,7 +177,9 @@ You understand:
 ## Analysis Guidelines
 
 ### 1. Mood Identification
-Detect from these 52 moods organized by category:
+**CRITICAL: You MUST map the user's mood to exactly ONE of these 52 predefined moods. Do NOT create new mood names.**
+
+Detect and map to these 52 moods organized by category:
 
 **Positive Emotions (10):**
 happy, excited, grateful, peaceful, confident, inspired, playful, content, loving, proud
@@ -159,6 +198,13 @@ contemplative, philosophical, curious, confused, stuck, purposeful, empty, overw
 
 **Transitional/Complex (6):**
 bittersweet, numb, vengeful, rebellious, vulnerable, bored
+
+**Mapping Instructions:**
+- If user says "I feel tense" or "pressure" → map to "stressed"
+- If user says "I feel down" or "blue" → map to "sad"
+- If user says "I feel worried" or "nervous" → map to "anxious"
+- If user says "I feel drained" or "exhausted" → map to "burnt_out" or "tired"
+- ALWAYS use the exact mood name from the list above (lowercase, underscores for multi-word moods)
 
 ### 2. Intensity Assessment (1-10 scale)
 - 1-3: Mild, subtle feeling
@@ -304,15 +350,10 @@ Output:
                 )
         
         # Initialize Pydantic AI Agent with Gemini Flash 2.5
+        # Result type is inferred from the type annotation Agent[None, MoodAnalysis]
         self.agent: Agent[None, MoodAnalysis] = Agent(
-            model="google-geminiai:gemini-2.0-flash-exp",
-            result_type=MoodAnalysis,
+            model="gemini-2.0-flash-exp",
             system_prompt=self.SYSTEM_INSTRUCTIONS,
-            model_settings={
-                "temperature": 0.3,  # Lower temperature for more consistent analysis
-                "top_p": 0.8,
-                "max_tokens": 2000,
-            },
         )
         
         logger.info("MoodAnalyzer initialized with Gemini Flash 2.5")
@@ -364,7 +405,9 @@ Output:
             # Run the agent
             result = await self.agent.run(full_prompt)
             
-            mood_analysis = result.data
+            # Extract the MoodAnalysis from AgentRunResult
+            # Pydantic AI returns AgentRunResult with .output attribute containing the structured data
+            mood_analysis: MoodAnalysis = result.output
             
             # Post-process: Ensure music preferences are populated
             if not mood_analysis.music_preferences:
@@ -393,18 +436,17 @@ Output:
             )
             
             return mood_analysis
-            
-        except ModelHTTPException as e:
-            logger.error(f"HTTP error during mood analysis: {e}")
-            raise RuntimeError(f"Failed to connect to Gemini API: {e}") from e
-        
-        except UnexpectedModelBehaviour as e:
-            logger.error(f"Unexpected model behavior: {e}")
-            raise RuntimeError(f"Gemini model returned unexpected response: {e}") from e
         
         except Exception as e:
-            logger.error(f"Unexpected error during mood analysis: {e}")
-            raise RuntimeError(f"Mood analysis failed: {e}") from e
+            logger.error(f"Error during mood analysis: {e}")
+            # Check if it's an HTTP-related error
+            error_msg = str(e).lower()
+            if 'http' in error_msg or 'connection' in error_msg or 'network' in error_msg:
+                raise RuntimeError(f"Failed to connect to Gemini API: {e}") from e
+            elif 'model' in error_msg or 'response' in error_msg:
+                raise RuntimeError(f"Gemini model returned unexpected response: {e}") from e
+            else:
+                raise RuntimeError(f"Mood analysis failed: {e}") from e
     
     def _default_music_preferences(self, mood: str, intensity: int) -> dict[str, Any]:
         """Generate default music preferences based on mood and intensity."""

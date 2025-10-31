@@ -3,7 +3,7 @@ name = "moodmatch-agent"
 version = "0.1.0"
 description = "An AI-powered A2A protocol agent that analyzes user mood and recommends personalized movies, music, and books using Gemini Flash 2.5"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
     {name = "MoodMatch Team"}
@@ -14,6 +14,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Framework :: FastAPI",
     "Topic :: Software Development :: Libraries :: Python Modules",
