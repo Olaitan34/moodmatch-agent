@@ -350,9 +350,9 @@ Output:
                 )
         
         # Initialize Pydantic AI Agent with Gemini Flash 2.5
-        # Result type is inferred from the type annotation Agent[None, MoodAnalysis]
-        self.agent: Agent[None, MoodAnalysis] = Agent(
-            model="gemini-2.0-flash-exp",
+        # For structured output, we need to use result_type in the run call, not agent init
+        self.agent = Agent(
+            "gemini-2.5-flash",
             system_prompt=self.SYSTEM_INSTRUCTIONS,
         )
         
@@ -402,12 +402,31 @@ Output:
         try:
             logger.info(f"Analyzing mood for message: {user_message[:100]}...")
             
-            # Run the agent
+            # Run the agent - structured output is requested via system prompt
             result = await self.agent.run(full_prompt)
             
-            # Extract the MoodAnalysis from AgentRunResult
-            # Pydantic AI returns AgentRunResult with .output attribute containing the structured data
-            mood_analysis: MoodAnalysis = result.output
+            # Extract the MoodAnalysis from the result
+            # pydantic-ai should return structured data in result.data
+            if hasattr(result, 'data') and isinstance(result.data, MoodAnalysis):
+                mood_analysis = result.data
+            elif hasattr(result, 'output'):
+                # If output is a string (JSON), parse it
+                output = result.output
+                if isinstance(output, str):
+                    # Remove markdown code blocks if present
+                    import json
+                    import re
+                    json_str = re.sub(r'^```json\s*|\s*```$', '', output.strip(), flags=re.MULTILINE)
+                    json_str = json_str.strip()
+                    # Parse JSON and create MoodAnalysis
+                    data = json.loads(json_str)
+                    mood_analysis = MoodAnalysis(**data)
+                elif isinstance(output, MoodAnalysis):
+                    mood_analysis = output
+                else:
+                    raise ValueError(f"Unexpected output type: {type(output)}")
+            else:
+                raise ValueError("Could not extract MoodAnalysis from result")
             
             # Post-process: Ensure music preferences are populated
             if not mood_analysis.music_preferences:
