@@ -352,30 +352,33 @@ class MoodMatchAgent:
         # Build concise opening (Telex has message length limits)
         mood = mood_analysis.primary_mood.capitalize()
         
+        # Count available recommendations
+        rec_count = sum([1 for r in [music, movie, book] if r is not None])
+        
         # Short empathetic intro
-        response_text = f"Feeling {mood.lower()}? Here are your personalized picks:\n\n"
+        response_text = f"Feeling {mood.lower()}? Here are {rec_count} personalized picks:\n\n"
         
         # Add music recommendation (compact format)
         if music:
-            response_text += f"🎵 {music.title}\n"
+            response_text += f"🎵 MUSIC: {music.title}\n"
             if music.artists:
-                response_text += f"by {', '.join(music.artists[:2])}\n"
-            response_text += f"{music.url}\n\n"
+                response_text += f"Artist: {', '.join(music.artists[:2])}\n"
+            response_text += f"Link: {music.url}\n\n"
         
         # Add movie recommendation (compact format)
         if movie:
-            response_text += f"🎬 {movie.title}"
+            response_text += f"🎬 MOVIE: {movie.title}"
             if movie.year:
                 response_text += f" ({movie.year})"
             if movie.rating:
                 response_text += f" - {movie.rating}/10"
-            response_text += f"\n{movie.url}\n\n"
+            response_text += f"\nLink: {movie.url}\n\n"
         
         # Add book recommendation (compact format)
         if book:
-            response_text += f"📚 {book.title}\n"
+            response_text += f"📚 BOOK: {book.title}\n"
             if book.author:
-                response_text += f"by {book.author}\n"
+                response_text += f"Author: {book.author}\n"
             google_books_url = book.urls.get("google_books", "")
             if google_books_url:
                 response_text += f"{google_books_url}\n\n"
