@@ -261,14 +261,27 @@ class MoodMatchAgent:
             # Store context
             self.contexts[context_id] = history
             
-            # Step 6: Create successful task result
+            # Step 6: Create status message (A2A protocol compliance)
+            status_message = A2AMessage(
+                role="agent",
+                parts=[MessagePart(
+                    kind="text",
+                    text="Recommendations generated successfully"
+                )],
+                messageId=str(uuid4()),
+                contextId=context_id,
+                taskId=task_id,
+                timestamp=datetime.utcnow()
+            )
+            
+            # Step 7: Create successful task result
             return TaskResult(
                 taskId=task_id,
                 contextId=context_id,
                 status=TaskStatus(
                     state="completed",
                     timestamp=datetime.utcnow(),
-                    message="Recommendations generated successfully"
+                    message=status_message
                 ),
                 artifacts=artifacts,
                 history=history
@@ -518,13 +531,26 @@ class MoodMatchAgent:
             taskId=task_id
         )
         
+        # Create status message (A2A protocol compliance)
+        status_message = A2AMessage(
+            role="agent",
+            parts=[MessagePart(
+                kind="text",
+                text=message
+            )],
+            messageId=str(uuid4()),
+            contextId=context_id,
+            taskId=task_id,
+            timestamp=datetime.utcnow()
+        )
+        
         return TaskResult(
             taskId=task_id,
             contextId=context_id,
             status=TaskStatus(
                 state="failed",
                 timestamp=datetime.utcnow(),
-                message=message
+                message=status_message
             ),
             artifacts=[],
             history=[error_message]

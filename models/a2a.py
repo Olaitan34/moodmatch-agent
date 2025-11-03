@@ -10,7 +10,7 @@ JSON-RPC 2.0: https://www.jsonrpc.org/specification
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -86,6 +86,9 @@ class MessagePart(BaseModel):
     data: Optional[dict[str, Any]] = Field(
         None, description="Structured data (for kind='data')"
     )
+    file_url: Optional[str] = Field(
+        None, description="URL to access the file (Telex.im compatibility)"
+    )
     mimeType: Optional[str] = Field(
         None, description="MIME type of the content (e.g., 'application/json', 'text/plain')"
     )
@@ -129,6 +132,9 @@ class A2AMessage(BaseModel):
     for multiple parts (text, data, files) and metadata tracking.
     """
 
+    kind: str = Field(
+        default="message", description="Message type identifier (always 'message')"
+    )
     role: MessageRole = Field(
         ..., description="Who sent this message: user, agent, or system"
     )
@@ -147,7 +153,7 @@ class A2AMessage(BaseModel):
     timestamp: datetime = Field(
         default_factory=datetime.utcnow, description="When this message was created"
     )
-    metadata: dict[str, Any] = Field(
+    metadata: Optional[dict[str, Any]] = Field(
         default_factory=dict, description="Additional metadata for the message"
     )
 
@@ -317,8 +323,8 @@ class TaskStatus(BaseModel):
     timestamp: datetime = Field(
         default_factory=datetime.utcnow, description="When this status was recorded"
     )
-    message: Optional[str] = Field(
-        None, description="Human-readable message about the status"
+    message: Optional[Union[str, 'A2AMessage']] = Field(
+        None, description="Human-readable message string or full message object about the status"
     )
     progress: Optional[float] = Field(
         None, ge=0.0, le=1.0, description="Progress percentage (0.0 to 1.0)"
