@@ -9,6 +9,13 @@ MoodMatch is an intelligent agent that understands your emotional state and reco
 [![A2A Protocol](https://img.shields.io/badge/A2A-Protocol-orange.svg)](https://github.com/modelcontextprotocol/a2a-protocol)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## 🌐 Live Demo
+
+- **Public Endpoint:** https://downier-virgulate-alanna.ngrok-free.dev/a2a/moodmatch
+- **Health Check:** https://downier-virgulate-alanna.ngrok-free.dev/health
+- **Telex.im Integration:** Available via A2A Protocol
+- **Postman Guide:** [POSTMAN_GUIDE.md](./POSTMAN_GUIDE.md)
+
 ---
 
 ## ✨ Features

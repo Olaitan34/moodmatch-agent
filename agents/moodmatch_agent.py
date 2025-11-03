@@ -349,74 +349,39 @@ class MoodMatchAgent:
         Returns:
             A2AMessage with formatted response
         """
-        # Build empathetic opening
+        # Build concise opening (Telex has message length limits)
         mood = mood_analysis.primary_mood.capitalize()
-        intensity = mood_analysis.intensity
         
-        response_parts = []
+        # Short empathetic intro
+        response_text = f"Feeling {mood.lower()}? Here are your personalized picks:\n\n"
         
-        # Opening
-        if intensity >= 7:
-            response_parts.append(f"I can sense you're feeling quite {mood.lower()} right now.")
-        else:
-            response_parts.append(f"I understand you're feeling {mood.lower()}.")
-        
-        # Immediate need context
-        need_phrases = {
-            "escape": "Let me help you find some great ways to escape and shift your perspective.",
-            "process": "Here are some thoughtful recommendations to help you process these feelings.",
-            "uplift": "I've found some uplifting options to help improve your mood.",
-            "calm": "These recommendations should help you find some calm and peace.",
-            "match": "Here are some perfect matches for your current mood.",
-            "channel": "These recommendations will help you channel that energy productively."
-        }
-        
-        response_parts.append(need_phrases.get(
-            mood_analysis.immediate_need,
-            "Here are some personalized recommendations for you."
-        ))
-        
-        response_text = " ".join(response_parts) + "\n\n"
-        
-        # Add music recommendation
+        # Add music recommendation (compact format)
         if music:
-            response_text += f"🎵 **Music**: {music.title}\n"
-            response_text += f"   {music.mood_match}\n"
-            response_text += f"   Perfect for: {music.use_case}\n"
-            if music.duration:
-                response_text += f"   Duration: {music.duration}\n"
-            response_text += f"   🔗 [Listen here]({music.url})\n\n"
+            response_text += f"🎵 {music.title}\n"
+            if music.artists:
+                response_text += f"by {', '.join(music.artists[:2])}\n"
+            response_text += f"{music.url}\n\n"
         
-        # Add movie recommendation
+        # Add movie recommendation (compact format)
         if movie:
-            response_text += f"🎬 **Movie**: {movie.title}"
+            response_text += f"🎬 {movie.title}"
             if movie.year:
                 response_text += f" ({movie.year})"
-            response_text += "\n"
-            response_text += f"   {movie.mood_match}\n"
-            response_text += f"   {movie.why}\n"
-            if movie.genres:
-                response_text += f"   Genres: {', '.join(movie.genres)}\n"
             if movie.rating:
-                response_text += f"   Rating: {movie.rating}/10\n"
-            response_text += f"   🔗 [Watch here]({movie.url})\n\n"
+                response_text += f" - {movie.rating}/10"
+            response_text += f"\n{movie.url}\n\n"
         
-        # Add book recommendation
+        # Add book recommendation (compact format)
         if book:
-            response_text += f"📚 **Book**: {book.title}\n"
+            response_text += f"📚 {book.title}\n"
             if book.author:
-                response_text += f"   by {book.author}\n"
-            response_text += f"   {book.mood_match}\n"
-            response_text += f"   {book.why}\n"
-            response_text += f"   Reading time: {book.reading_time}\n"
-            if book.rating:
-                response_text += f"   Rating: {book.rating}/5\n"
+                response_text += f"by {book.author}\n"
             google_books_url = book.urls.get("google_books", "")
             if google_books_url:
-                response_text += f"   🔗 [Find it here]({google_books_url})\n\n"
+                response_text += f"{google_books_url}\n\n"
         
-        # Closing
-        response_text += "\n💙 I hope these recommendations help! Let me know if you'd like different suggestions."
+        # Simple closing
+        response_text += "Need different suggestions? Just ask! 💙"
         
         # Create A2A message
         return A2AMessage(
