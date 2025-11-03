@@ -143,6 +143,26 @@ async def health_check():
     }
 
 
+@app.get("/kaithhealthcheck")
+async def leapcell_health_check():
+    """
+    Leapcell-specific health check endpoint.
+    
+    Leapcell platform checks this endpoint to verify the service is running.
+    """
+    return {"status": "healthy"}
+
+
+@app.get("/kaithheathcheck")
+async def leapcell_health_check_typo():
+    """
+    Leapcell health check endpoint (handles platform typo).
+    
+    Leapcell sometimes checks this misspelled variant.
+    """
+    return {"status": "healthy"}
+
+
 @app.post("/a2a/moodmatch")
 async def a2a_endpoint(request: Request):
     """
