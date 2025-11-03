@@ -1,0 +1,11 @@
+# Leapcell Build Configuration
+python_version = "3.12"
+build_command = "pip install -r requirements.txt"
+start_command = "uvicorn main:app --host 0.0.0.0 --port 8000"
+
+[env]
+# Environment variables (set in Leapcell dashboard)
+# GEMINI_API_KEY = "your_gemini_api_key"
+# SPOTIFY_CLIENT_ID = "your_spotify_client_id"
+# SPOTIFY_CLIENT_SECRET = "your_spotify_client_secret"
+# TMDB_API_KEY = "your_tmdb_api_key"
